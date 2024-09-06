@@ -1,0 +1,9 @@
+# GLOBALS
+flask
+openai
+pymilvus
+colorlog
+
+# OCR
+requests
+polars
