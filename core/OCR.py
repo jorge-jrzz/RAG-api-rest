@@ -1,15 +1,13 @@
 import json
 from pathlib import Path
-from typing import List, Dict, Optional
-import polars as pl
+from typing import List, Dict
 from unstructured_client import UnstructuredClient
 from unstructured_client.models import operations, shared
 
 
 class OCR:
-    def __init__(self, current_df: Optional[pl.DataFrame] = None):
+    def __init__(self):
         self.unstructured_client = UnstructuredClient(server_url="http://localhost:8000")
-        self.current_df = current_df
 
 
     def get_ocr(self, file_path: str) -> List[Dict]:
@@ -48,7 +46,7 @@ class OCR:
         metadata = {"filetype": f'text/{file.suffix[1:]}' , "filename": file.name}
         text = file.read_text(encoding='utf-8')
         data = {
-            'metadata': [json.dumps(metadata)], 
-            'text': [text]
+            'metadata': metadata, 
+            'text': text
         }
-        return data
+        return [data]

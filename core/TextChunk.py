@@ -1,4 +1,4 @@
-import json, sqlite3
+import json, sqlite3, copy
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 import polars as pl
@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 
 class TextChunk():
 
-    def __init__(self, current_df: Optional[pl.DataFrame] = pl.DataFrame):
+    def __init__(self, current_df: Optional[pl.DataFrame] = pl.DataFrame()):
         self.current_df = current_df
 
     def __pdf_chunk(self, json_data: List[Dict]) -> pl.DataFrame:
@@ -28,7 +28,7 @@ class TextChunk():
             })
         
         # Crear el DataFrame de Polars
-        return pl.DataFrame(data).with_row_index('id')
+        return pl.DataFrame(data).with_row_index('id', offset=len(self.current_df)+1)
     
 
     def __rtf_chunk(self, json_data: List[Dict]) -> pl.DataFrame:
@@ -47,7 +47,7 @@ class TextChunk():
         }
 
         # Crear el DataFrame de Polars
-        return pl.DataFrame(data).with_row_index('id')    
+        return pl.DataFrame(data).with_row_index('id', offset=len(self.current_df)+1) 
 
     def __add_if_not_exists(self, new_data: Union[pl.DataFrame, Dict], key_columns: Optional[List]=None) -> pl.DataFrame:
         """
@@ -102,7 +102,9 @@ class TextChunk():
         elif filetype == "text/rtf":
             df = self.__rtf_chunk(json_data)
         elif filetype.startswith('text'):
-            df = pl.DataFrame(json_data).with_row_index('id') 
+            data = copy.deepcopy(json_data)
+            data[0]['metadata'] = json.dumps(data[0]['metadata'])
+            df = pl.DataFrame(data).with_row_index('id', offset=len(self.current_df)+1)
 
         self.__add_if_not_exists(new_data=df)
         return self.current_df
