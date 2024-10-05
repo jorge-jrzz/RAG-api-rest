@@ -1,4 +1,6 @@
-import json, sqlite3, copy
+import json
+import sqlite3
+import copy
 from pathlib import Path
 from typing import List, Dict, Optional, Union
 import polars as pl
@@ -6,7 +8,7 @@ from sqlalchemy import create_engine
 
 
 class TextChunk():
-
+    
     def __init__(self, current_df: Optional[pl.DataFrame] = pl.DataFrame()):
         self.current_df = current_df
 
@@ -18,7 +20,7 @@ class TextChunk():
             if page_number not in pages:
                 pages[page_number] = []
             pages[page_number].append(item['text'])
-        
+
         # Crear una lista de diccionarios con la estructura deseada
         data = []
         for page_number, texts in pages.items():
@@ -26,14 +28,13 @@ class TextChunk():
                 'metadata': json.dumps({'page_number': page_number, 'filename': json_data[0]['metadata']['filename']}),
                 'text': ' '.join(texts)
             })
-        
+
         # Crear el DataFrame de Polars
         return pl.DataFrame(data).with_row_index('id', offset=len(self.current_df)+1)
-    
 
     def __rtf_chunk(self, json_data: List[Dict]) -> pl.DataFrame:
         metadata = {
-            "filetype": json_data[0]['metadata']['filetype'], 
+            "filetype": json_data[0]['metadata']['filetype'],
             "filename": json_data[0]['metadata']['filename']
         }
         text = []
@@ -47,12 +48,12 @@ class TextChunk():
         }
 
         # Crear el DataFrame de Polars
-        return pl.DataFrame(data).with_row_index('id', offset=len(self.current_df)+1) 
+        return pl.DataFrame(data).with_row_index('id', offset=len(self.current_df)+1)
 
-    def __add_if_not_exists(self, new_data: Union[pl.DataFrame, Dict], key_columns: Optional[List]=None) -> pl.DataFrame:
+    def __add_if_not_exists(self, new_data: Union[pl.DataFrame, Dict], key_columns: Optional[List] = None) -> pl.DataFrame:
         """
         Agrega nuevas filas al DataFrame si no existen basándose en columnas clave.
-        
+
         :param df: DataFrame de Polars existente
         :param nuevos_datos: DataFrame o diccionario con los nuevos datos
         :param columnas_clave: Lista de nombres de columnas para verificar la existencia
@@ -65,7 +66,7 @@ class TextChunk():
             new_data = pl.DataFrame([new_data])
         if not isinstance(new_data, pl.DataFrame):
             raise TypeError("nuevos_datos debe ser un DataFrame de Polars o un diccionario")
-        
+
         if self.current_df.is_empty():
             self.current_df = self.current_df.vstack(new_data)
             return self.current_df
@@ -93,7 +94,6 @@ class TextChunk():
         else:
             print("No hay datos nuevos para agregar")
         return self.current_df
-    
 
     def text_chunks_to_dataframe(self, json_data: List[Dict]) -> pl.DataFrame:
         filetype = json_data[0]['metadata']['filetype']
@@ -104,11 +104,11 @@ class TextChunk():
         elif filetype.startswith('text'):
             data = copy.deepcopy(json_data)
             data[0]['metadata'] = json.dumps(data[0]['metadata'])
-            df = pl.DataFrame(data).with_row_index('id', offset=len(self.current_df)+1)
+            df = pl.DataFrame(data).with_row_index(
+                'id', offset=len(self.current_df)+1)
 
         self.__add_if_not_exists(new_data=df)
         return self.current_df
-
 
     def save_checkpoint(self, checkpoint_path: str, table_name: Optional[str] = 'ocr_data') -> None:
         """
@@ -124,12 +124,13 @@ class TextChunk():
         conn = sqlite3.connect(checkpoint_path)
         temp_df = self.current_df.clone()
         temp_df.drop_in_place('id')
-        temp_df.write_database(table_name=table_name, connection=f"sqlite:///{checkpoint_path}", if_table_exists="replace")
+        temp_df.write_database(table_name=table_name, connection=f"sqlite:///{
+                               checkpoint_path}", if_table_exists="replace")
         conn.close()
-    
-    
+
     def load_checkpoint(self, checkpoint_path: str, table_name: Optional[str] = 'ocr_data') -> pl.DataFrame:
         conn = create_engine(f"sqlite:///{checkpoint_path}")
         query = f"SELECT * FROM {table_name}"
-        self.current_df = pl.read_database(query=query, connection=conn.connect()).with_row_index('id')
+        self.current_df = pl.read_database(
+            query=query, connection=conn.connect()).with_row_index('id')
         return self.current_df
