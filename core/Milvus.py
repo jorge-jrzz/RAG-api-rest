@@ -1,21 +1,16 @@
 import os
-import sqlite3
 import json
 import polars as pl
 from pymilvus import MilvusClient
 from openai import OpenAI
-from .log import get_logger
 
 
-logger = get_logger(__name__)
-
-class MulvusEmbeddingManager:
-    def __init__(self, collection_name, df):
-        self.openai_client = OpenAI(api_key="")
+class MilvusManager:
+    def __init__(self, collection_name):
+        self.openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.model_name = "text-embedding-3-small"
         self.milvus_client = MilvusClient(uri="http://localhost:19530")
         self.collection_name = collection_name
-        self.df = df
-        self.model_name = "text-embedding-3-small"
 
 
     def create_embeddings(self, text):
@@ -25,6 +20,7 @@ class MulvusEmbeddingManager:
         # logger.info("Embedding generated for text")
         return embedding
     
+
     def create_collection(self):
         try:
             if self.milvus_client.has_collection(collection_name=self.collection_name):
@@ -40,15 +36,16 @@ class MulvusEmbeddingManager:
             # logger.error(f"Error creating collection: {e}")
             print(f"Error creating collection: {e}")
 
-    def insert_points(self):
-        dtf = self.df.with_columns((pl.col("text").map_elements(
-            self.create_embeddings, return_dtype=pl.List(pl.Float64))).alias("vector"))
+
+    def insert_points(self, df: pl.DataFrame):
+        dtf = df.with_columns((pl.col("text").map_elements(self.create_embeddings, return_dtype=pl.List(pl.Float64))).alias("vector"))
         data = dtf.to_dicts()
         res = self.milvus_client.upsert(
             collection_name=self.collection_name,
             data=data
         )
         print(res)
+
 
     def search(self, input_text, limit=3):
         search_params = {
