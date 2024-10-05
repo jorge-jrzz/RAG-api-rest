@@ -1,4 +1,5 @@
-import os, shutil
+import os
+import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
@@ -11,7 +12,8 @@ class Strategy(ABC):
     def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None):
         pass
 
-class PDF_or_PlainText(Strategy):
+
+class AcceptedFiles(Strategy):
     def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None):
         if dst_path and dst_dir:
             print("Error: dst_path and dir_name cannot be used at the same time")
@@ -34,14 +36,15 @@ class Another(Strategy):
         if dst_path and dst_dir:
             print("Error: dst_path and dir_name cannot be used at the same time")
             return
-        
+
         libre_office_url = "http://localhost:2004/request"
         with open(src_path, 'rb') as file:
             files = {'file': file}
             data = {'convert-to': 'pdf'}
 
             try:
-                response = requests.post(url=libre_office_url, files=files, data=data, timeout=20)
+                response = requests.post(
+                    url=libre_office_url, files=files, data=data, timeout=20)
                 response.raise_for_status()
             except (RequestException, Exception) as e:
                 print("Error converting the file: ", e)
@@ -56,7 +59,8 @@ class Another(Strategy):
                 output_file.write(response.content)
             print("Archivo convertido exitosamente y guardado en: ", output_path)
 
-class Context:
+
+class FileManager:
     def __init__(self, strategy: Strategy):
         self._strategy = strategy
 
