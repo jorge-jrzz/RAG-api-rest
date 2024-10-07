@@ -22,9 +22,9 @@ class OCR:
                 ),
                 strategy=shared.Strategy.AUTO,
                 languages=['eng', 'spa'],
-                split_pdf_page=True,            # If True, splits the PDF file into smaller chunks of pages.
-                split_pdf_allow_failed=True,    # If True, the partitioning continues even if some pages fail.
-                split_pdf_concurrency_level=15  # Set the number of concurrent request to the maximum value: 15.
+                split_pdf_page=False,            # If True, splits the PDF file into smaller chunks of pages.
+                # split_pdf_allow_failed=True,    # If True, the partitioning continues even if some pages fail.
+                # split_pdf_concurrency_level=15  # Set the number of concurrent request to the maximum value: 15.
             ),
         )
 
