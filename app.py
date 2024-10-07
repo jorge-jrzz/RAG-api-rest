@@ -1,9 +1,9 @@
 import os
 from typing import Optional, List, Dict
 from werkzeug.utils import secure_filename
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import polars as pl
-from core import FileManager, AcceptedFiles, Another, OCR, TextChunk
+from core import FileManager, AcceptedFiles, Another, OCR, TextChunk, MilvusManager
 
 
 UPLOAD_FOLDER = './uploads'
@@ -47,6 +47,12 @@ def get_text_chunks(ocr_text: List[Dict]) -> pl.DataFrame:
     return df_text
 
 
+def insert_points(df_points: pl.DataFrame) -> None:
+    milvus_manager = MilvusManager("collection")
+    milvus_manager.create_collection()
+    milvus_manager.insert_points(df_points)
+
+
 @app.get("/hello")
 def hello():
     return "<h2>Hello, World!</h2>"
@@ -69,9 +75,11 @@ def upload_file():
         accepted_file = ensure_file_format(path_file)       # Ensure file format
         text_file = make_ocr(accepted_file)                 # Extract text from file (OCR)
         text_chunks = get_text_chunks(text_file)            # Get text chunks (pl.DataFrame)
+        insert_points(text_chunks)               # Insert points in Milvus
         return "<h2>File uploaded successfully</h2>"
     else:
         return "<h2>Invalid file format</h2>"
+    
 
 
 if __name__ == "__main__":
