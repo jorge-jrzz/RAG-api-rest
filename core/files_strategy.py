@@ -9,7 +9,7 @@ from requests.exceptions import RequestException
 
 class Strategy(ABC):
     @abstractmethod
-    def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None):
+    def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None) -> Optional[str]:
         pass
 
 
@@ -20,13 +20,15 @@ class AcceptedFiles(Strategy):
             return
         if dst_path:
             shutil.move(src_path, dst_path)
+            return dst_path
         elif dst_dir:
             try:
                 # Crear el directorio destino si no existe
                 os.makedirs(os.path.dirname(dst_dir), exist_ok=True)
 
                 # Mover el archivo
-                shutil.move(src_path, dst_dir)
+                output_path = shutil.move(src_path, dst_dir)
+                return output_path
             except Exception as e:
                 print("Error moving the file: ", e)
 
@@ -53,19 +55,23 @@ class Another(Strategy):
             with open(dst_path, 'wb') as output_file:
                 output_file.write(response.content)
             print("Archivo convertido exitosamente y guardado en: ", dst_path)
+            return dst_path
         elif dst_dir:
+            os.makedirs(os.path.dirname(dst_dir), exist_ok=True)
             output_path = dst_dir + Path(src_path).stem + '.pdf'
             with open(output_path, 'wb') as output_file:
                 output_file.write(response.content)
             print("Archivo convertido exitosamente y guardado en: ", output_path)
+            return output_path
 
 
 class FileManager:
-    def __init__(self, strategy: Strategy):
-        self._strategy = strategy
+    def __init__(self):
+        self._strategy = None
 
     def set_strategy(self, strategy: Strategy):
         self._strategy = strategy
 
-    def execute_strategy(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None):
-        self._strategy.execute(src_path, dst_path, dst_dir)
+    def execute_strategy(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None) -> Optional[str]:
+        path = self._strategy.execute(src_path, dst_path, dst_dir)
+        return path
