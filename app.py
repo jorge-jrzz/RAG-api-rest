@@ -1,58 +1,68 @@
 import os
+from typing import Optional, List, Dict
 from werkzeug.utils import secure_filename
-from flask import Flask, flash, request, redirect, url_for, send_from_directory
-from core import FileManager, Strategy, AcceptedFiles, Another, OCR, TextChunk, get_logger
+from flask import Flask, request
+from core import FileManager, AcceptedFiles, Another, OCR, TextChunk, get_logger
 
 
 UPLOAD_FOLDER = './uploads'
-ALLOWED_EXTENSIONS = {'txt', 'rtf', 'html', 'java', 'py', 'c', 'cpp', 'pdf', 'png', 'jpg', 'jpeg', 'ppt', 'pptx', 'doc', 'docx'}
+ALLOWED_EXTENSIONS = {'txt', 'rtf', 'html', 'java', 'py', 'c', 'cpp', 'js', 'pdf', 'png', 'jpg', 'jpeg', 'ppt', 'pptx', 'doc', 'docx'}
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-@app.get("/hello")
-def hello():
-    flash("Hello, World!")
-    return "<h2>Hello, World!</h2>"
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/', methods=['GET', 'POST'])
+
+def ensure_file_format(file: str) -> Optional[str]:
+    file_manager = FileManager()
+
+    if '.' in file and file.rsplit('.', 1)[1].lower() \
+            in ['pdf', 'txt', 'rtf', 'html', 'java', 'py', 'c', 'cpp', 'js']:
+        file_manager.set_strategy(AcceptedFiles())
+    else:
+        file_manager.set_strategy(Another())
+
+    path = file_manager.execute_strategy(file, dst_dir='./uploads/documents/')
+    return path
+
+
+def make_ocr(file: str) -> List[Dict]:
+    ocr = OCR()
+    if file.lower().endswith('.pdf'):
+        text = ocr.get_ocr(file)
+    else:
+        text= ocr.get_dev_ocr(file)
+    return text
+
+
+@app.get("/hello")
+def hello():
+    return "<h2>Hello, World!</h2>"
+
+
+@app.post('/upload')
 def upload_file():
-    if request.method == 'POST':
-        # check if the post request has the file part
-        if 'file' not in request.files:
-            flash('No file part')
-            return redirect(request.url)
-        file = request.files['file']
-        # If the user does not select a file, the browser submits an
-        # empty file without a filename.
-        if file.filename == '':
-            flash('No selected file')
-            return redirect(request.url)
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            return redirect(url_for('download_file', name=filename))
-    return '''
-    <!doctype html>
-    <title>Upload new File</title>
-    <h1>Upload new File</h1>
-    <form method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
-
-
-@app.route('/uploads/<name>')
-def download_file(name):
-    return send_from_directory(app.config["UPLOAD_FOLDER"], name)
-
-
-app.add_url_rule("/uploads/<name>", endpoint="download_file", build_only=True)
+    # check if the post request has the file part
+    if 'file' not in request.files:
+        return "<h2>No file sent</h2>"
+    
+    file = request.files['file']
+    if file.filename == '':
+        return "<h2>No file sent</h2>"
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        path_file = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(path_file)
+        accepted_file = ensure_file_format(path_file)
+        text_file = make_ocr(accepted_file)
+        return "<h2>File uploaded successfully</h2> <br> <h3>Text extracted:</h3> <br> <p>{}</p>".format(text_file)
+    else:
+        return "<h2>Invalid file format</h2>"
 
 
 if __name__ == "__main__":
