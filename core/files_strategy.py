@@ -14,13 +14,14 @@ class Strategy(ABC):
 
 
 class AcceptedFiles(Strategy):
-    def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None):
+    def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None) -> Optional[str]:
         if dst_path and dst_dir:
             print("Error: dst_path and dir_name cannot be used at the same time")
             return
+        
+        output_path = None
         if dst_path:
-            shutil.move(src_path, dst_path)
-            return dst_path
+            output_path = shutil.move(src_path, dst_path)
         elif dst_dir:
             try:
                 # Crear el directorio destino si no existe
@@ -28,13 +29,14 @@ class AcceptedFiles(Strategy):
 
                 # Mover el archivo
                 output_path = shutil.move(src_path, dst_dir)
-                return output_path
             except Exception as e:
                 print("Error moving the file: ", e)
+        
+        return str(output_path)
 
 
 class Another(Strategy):
-    def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None):
+    def execute(self, src_path: str, dst_path: Optional[str] = None, dst_dir: Optional[str] = None) -> Optional[str]:
         if dst_path and dst_dir:
             print("Error: dst_path and dir_name cannot be used at the same time")
             return
@@ -51,18 +53,20 @@ class Another(Strategy):
             except (RequestException, Exception) as e:
                 print("Error converting the file: ", e)
 
+        output_path = None
         if dst_path:
             with open(dst_path, 'wb') as output_file:
                 output_file.write(response.content)
             print("Archivo convertido exitosamente y guardado en: ", dst_path)
-            return dst_path
+            output_path = Path(dst_path).absolute()
         elif dst_dir:
             os.makedirs(os.path.dirname(dst_dir), exist_ok=True)
-            output_path = dst_dir + Path(src_path).stem + '.pdf'
+            output_path = Path(dst_dir) / (Path(src_path).stem + '.pdf')
             with open(output_path, 'wb') as output_file:
                 output_file.write(response.content)
             print("Archivo convertido exitosamente y guardado en: ", output_path)
-            return output_path
+        
+        return str(output_path)
 
 
 class FileManager:
