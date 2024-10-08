@@ -1,47 +1,85 @@
-import json
+"""
+This module provides functionalities for Optical Character Recognition (OCR).
+"""
+
+import subprocess
 from pathlib import Path
-from typing import List, Dict
-from unstructured_client import UnstructuredClient
-from unstructured_client.models import operations, shared
+from typing import List, Dict, Union
+import pymupdf
 
 
 class OCR:
-    def __init__(self):
-        self.unstructured_client = UnstructuredClient(server_url="http://localhost:8000")
+    @staticmethod
+    def _ocr_pdf(input_pdf: Union[str, Path], output_pdf: Union[str, Path], language='eng+spa') -> None:
+        """
+        Adds an OCR text layer to scanned PDF files, allowing them to be searched using OCRmyPDF.
 
-
-    def get_ocr(self, file_path: str) -> List[Dict]:
-        with open(file_path, "rb") as f:
-            data = f.read()
-
-        req = operations.PartitionRequest(
-            partition_parameters=shared.PartitionParameters(
-                files=shared.Files(
-                    content=data,
-                    file_name=file_path,
-                ),
-                strategy=shared.Strategy.AUTO,
-                languages=['eng', 'spa'],
-                split_pdf_page=False,            # If True, splits the PDF file into smaller chunks of pages.
-                # split_pdf_allow_failed=True,    # If True, the partitioning continues even if some pages fail.
-                # split_pdf_concurrency_level=15  # Set the number of concurrent request to the maximum value: 15.
-            ),
-        )
-
+        Args: 
+            input_pdf (str, Path): The path to the input PDF file.
+            output_pdf (str, Path): The path to the output PDF file.
+            language (str): The language(s) to use for OCR. Default is 'eng+spa' (English and Spanish).
+        
+        Returns:
+            None
+        """
         try:
-            res = self.unstructured_client.general.partition(request=req)
-            element_dicts = [element for element in res.elements]
-            json_elements = json.dumps(element_dicts, indent=2)
+            # Construir el comando
+            comando = [
+                'ocrmypdf',
+                '-l', language,
+                '--force-ocr',
+                '--jobs', '6',  # Número de trabajos en paralelo
+                '--output-type', 'pdf',
+                str(input_pdf),
+                str(output_pdf)
+            ]
 
-            # Print the processed data.
-            print(json_elements)
-            return element_dicts
+            # Ejecutar el comando
+            subprocess.run(comando, check=True)
+            print(f"OCR aplicado exitosamente a {input_pdf}. Salida: {output_pdf}")
+        except subprocess.CalledProcessError as e:
+            print(f"Error al aplicar OCR: {e}")
 
-        except Exception as e:
-            print(e)
+    @classmethod
+    def get_ocr(cls, file_path: str) -> List[Dict]:
+        """
+        Extracts text of each page from a PDF file using PyMuPDF.
 
+        Args:
+            file_path (str): The path to the PDF file.
+        
+        Returns:
+            List[Dict]: A list of dictionaries containing the text and metadata of each page.
+        """
+        file = Path(file_path).resolve()
+        cls._ocr_pdf(file, file)
+        elements = []
+        metadata = {
+            'filetype': 'application/pdf',
+            'filename': file.name,
+            'page_number': 0
+        }
+        doc = pymupdf.open(file)  # Abrir el archivo PDF
+        for page in doc:
+            metadata_copy = metadata.copy()  # Crear una copia del diccionario
+            metadata_copy['page_number'] = page.number + 1
+            elements.append({
+                'metadata': metadata_copy,
+                'text': page.get_text().encode('utf-8')
+            })
+        return elements
+    
+    @staticmethod
+    def get_dev_ocr(file_path: str) -> List[Dict]:
+        """
+        Extracts text from a plain text file, e.g. {'.txt', '.html', '.py'}.
 
-    def get_dev_ocr(self, file_path: str) -> Dict:
+        Args:
+            file_path (str): The path to the text file.
+
+        Returns:
+            List[Dict]: A list of dictionaries containing the text and metadata of the file.
+        """
         file = Path(file_path)
         metadata = {"filetype": f'text/{file.suffix[1:]}' , "filename": file.name}
         text = file.read_text(encoding='utf-8')
