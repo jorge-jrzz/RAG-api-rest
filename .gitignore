@@ -163,3 +163,7 @@ cython_debug/
 
 # MacOS stuff 
 .DS_Store
+
+# Development
+data/
+uploads/
