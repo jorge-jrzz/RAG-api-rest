@@ -47,12 +47,12 @@ class MilvusManager:
         print(res)
 
 
-    def search(self, input_text, limit=3):
+    def search_points(self, input_text, limit=3) -> str:
         search_params = {
             "metric_type": "COSINE",
             "params": {
-                "radius": 0.5, # Radius of the search circle
-                "range_filter": 0.8 # Range filter to filter out vectors that are not within the search circle
+                "radius": 0.4, # Radius of the search circle
+                "range_filter": 0.5 # Range filter to filter out vectors that are not within the search circle
             }
         }
         query_embedding = self.create_embeddings(input_text)
