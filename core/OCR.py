@@ -6,9 +6,17 @@ import subprocess
 from pathlib import Path
 from typing import List, Dict, Union
 import pymupdf
+from .utils import get_logger
 
+
+logger = get_logger(__name__)
 
 class OCR:
+    """
+    OCR class.
+    This class provides functionalities for Optical Character Recognition (OCR) in a PDF file.
+    """
+
     @staticmethod
     def _ocr_pdf(input_pdf: Union[str, Path], output_pdf: Union[str, Path], language='eng+spa') -> None:
         """
@@ -22,23 +30,23 @@ class OCR:
         Returns:
             None
         """
+
         try:
             # Construir el comando
             comando = [
                 'ocrmypdf',
                 '-l', language,
                 '--force-ocr',
-                '--jobs', '6',  # Número de trabajos en paralelo
+                '--jobs', '4',  # Número de trabajos en paralelo
                 '--output-type', 'pdf',
                 str(input_pdf),
                 str(output_pdf)
             ]
-
-            # Ejecutar el comando
+            # Ejecutar el comando como proceso hijo
             subprocess.run(comando, check=True)
-            print(f"OCR aplicado exitosamente a {input_pdf}. Salida: {output_pdf}")
+            logger.info("OCR applied successfully to %s", input_pdf)
         except subprocess.CalledProcessError as e:
-            print(f"Error al aplicar OCR: {e}")
+            logger.error("Error applying OCR: %s", e)
 
     @classmethod
     def get_ocr(cls, file_path: str) -> List[Dict]:
@@ -51,6 +59,7 @@ class OCR:
         Returns:
             List[Dict]: A list of dictionaries containing the text and metadata of each page.
         """
+
         file = Path(file_path).resolve()
         cls._ocr_pdf(file, file)
         elements = []
@@ -65,8 +74,11 @@ class OCR:
             metadata_copy['page_number'] = page.number + 1
             elements.append({
                 'metadata': metadata_copy,
+                # Obtener el texto de la página y codificarlo en UTF-8
                 'text': page.get_text().encode('utf-8')
             })
+        doc.close()
+        logger.info("Text extracted from %s", file)
         return elements
     
     @staticmethod
@@ -80,6 +92,7 @@ class OCR:
         Returns:
             List[Dict]: A list of dictionaries containing the text and metadata of the file.
         """
+
         file = Path(file_path)
         metadata = {"filetype": f'text/{file.suffix[1:]}' , "filename": file.name}
         text = file.read_text(encoding='utf-8')
@@ -87,4 +100,5 @@ class OCR:
             'metadata': metadata, 
             'text': text
         }
+        logger.info("Text extracted from %s", file)
         return [data]

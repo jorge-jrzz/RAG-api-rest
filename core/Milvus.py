@@ -96,7 +96,7 @@ class MilvusManager:
         Args:
             collection_name (str): The name of the collection.
             input_text (str): The input text to search for.
-            limit (int) default = 3: The number of similar points to return.
+            limit (int): The number of similar points to return. Default is 3.
 
         Returns:
             str: The search results in JSON format.
